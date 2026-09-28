@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FB回覆計數器">
+<link rel="manifest" href="manifest.json">
+<title>FB 回覆計數器</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif}
+main{max-width:520px;margin:auto;min-height:100dvh;padding:24px 18px 32px}h1{text-align:center;font-size:26px;margin:8px 0 22px}
+.card{background:#fff;border-radius:22px;padding:22px;margin-bottom:16px;box-shadow:0 5px 20px rgba(0,0,0,.07)}.label{text-align:center;color:#6b7280;font-size:15px}
+#timer{text-align:center;font-size:64px;font-weight:700;margin:8px 0}#status{text-align:center;color:#6b7280;min-height:22px}
+#count{text-align:center;font-size:42px;font-weight:700;margin:10px 0}.bar{height:14px;background:#e5e7eb;border-radius:99px;overflow:hidden}
+#barFill{height:100%;width:0;background:#111827;transition:width .15s}button{width:100%;border:0;border-radius:16px;padding:16px;font-size:20px;font-weight:700;margin-top:12px;touch-action:manipulation}
+#plus{background:#111827;color:#fff;min-height:64px;font-size:24px}.secondary{background:#e5e7eb;color:#111827}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint,.warning{font-size:14px;line-height:1.65;color:#4b5563}.warning{font-size:13px;color:#6b7280}
+</style>
+</head>
+<body>
+<main>
+<h1>FB 回覆計數器</h1>
+<section class="card"><div class="label">本輪剩餘時間</div><div id="timer">10:00</div><div id="status">第一次按「＋1 回覆」時開始計時</div></section>
+<section class="card">
+<div class="label">本輪回覆數</div><div id="count">0 / 10</div><div class="bar"><div id="barFill"></div></div>
+<button id="plus">＋1 回覆</button>
+<div class="row"><button class="secondary" id="minus">−1 修正</button><button class="secondary" id="pause">⏸ 暫停</button></div>
+<button class="secondary" id="reset">↻ 下一輪</button>
+</section>
+<section class="card hint"><strong>使用方式</strong><br>
+1. 完成一次 Facebook 手動回覆後，按「＋1 回覆」。<br>
+2. 第一次按下時開始 10 分鐘倒數。<br>
+3. 切換到 Facebook 後，回來會依實際經過時間重新計算。<br>
+4. 需要修正時按「−1」。10/10 後本輪不再增加。</section>
+<section class="card warning">此工具只是協助控制操作頻率，不代表 Facebook 官方安全門檻。Facebook 並未公開固定的「10 分鐘 10 次」官方限制。</section>
+</main>
+<script>
+(()=>{const D=600000,M=10,K="fb_reply_counter_v2";let s={count:0,deadline:null,paused:false,remaining:D};
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(K,JSON.stringify(s))}
+function load(){try{let x=JSON.parse(localStorage.getItem(K));if(x)s={...s,...x}}catch(e){}}
+function rem(){if(s.paused)return s.remaining;if(s.deadline===null)return D;return Math.max(0,s.deadline-Date.now())}
+function fmt(ms){let t=Math.max(0,Math.ceil(ms/1000)),m=Math.floor(t/60),x=t%60;return String(m).padStart(2,"0")+":"+String(x).padStart(2,"0")}
+function render(){let r=rem();$("timer").textContent=fmt(r);$("count").textContent=`${s.count} / ${M}`;$("barFill").style.width=`${s.count/M*100}%`;let d=false;
+if(s.count>=M){$("status").textContent="本輪已達 10/10";d=true}
+else if(s.deadline===null&&!s.paused)$("status").textContent="第一次按「＋1 回覆」時開始計時";
+else if(s.paused){$("status").textContent="已暫停";d=true}
+else if(r<=0){$("status").textContent="本輪 10 分鐘已結束，請開始下一輪";d=true}
+else $("status").textContent="計時中";
+$("plus").disabled=d;$("plus").style.opacity=d?".5":"1";$("pause").textContent=s.paused?"▶️ 繼續":"⏸ 暫停"}
+$("plus").onclick=()=>{if(s.count>=M||s.paused||rem()<=0)return;let was=s.count;s.count++;if(was===0&&s.deadline===null){s.deadline=Date.now()+D;s.remaining=D}save();render()};
+$("minus").onclick=()=>{if(s.count>0){s.count--;save();render()}};
+$("pause").onclick=()=>{if(s.deadline===null&&!s.paused)return;if(!s.paused){s.remaining=rem();s.deadline=null;s.paused=true}else{s.deadline=Date.now()+s.remaining;s.paused=false}save();render()};
+$("reset").onclick=()=>{s={count:0,deadline:null,paused:false,remaining:D};save();render()};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)render()});
+load();setInterval(()=>{if(!s.paused&&s.deadline!==null){if(rem()<=0)save();render()}},250);render();
+if("serviceWorker"in navigator&&location.protocol!=="file:")addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
+})();
+</script>
+</body></html>
